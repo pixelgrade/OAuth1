@@ -600,10 +600,12 @@ class WP_REST_OAuth1 {
 		// Delete the request token
 		$this->remove_request_token( $params['oauth_token'] );
 
+		$current_user = wp_get_current_user();
 		// Return the new token's data
 		$data = array(
 			'oauth_token' => self::urlencode_rfc3986( $key ),
 			'oauth_token_secret' => self::urlencode_rfc3986( $data['secret'] ),
+			'user_ID' => $current_user->ID
 		);
 		return $data;
 	}

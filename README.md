@@ -1,3 +1,9 @@
+#Pixelgrade fork
+
+At this very moment we are using this fork version before we try to push a pull request to the main repo
+Traking changes:
+- When the authentication is done, we also request the user id aside access_token
+
 # [WP REST API - OAuth 1.0a Server](http://oauth1.wp-api.org/)
 
 Connect applications to your WordPress site without ever giving away your password.
