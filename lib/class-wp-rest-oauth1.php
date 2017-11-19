@@ -76,7 +76,7 @@ class WP_REST_OAuth1 {
 		if ( function_exists( 'getallheaders' ) ) {
 			$headers = getallheaders();
 
-			// Check for the authoization header case-insensitively
+			// Check for the authorization header case-insensitively
 			foreach ( $headers as $key => $value ) {
 				if ( strtolower( $key ) === 'authorization' ) {
 					return $value;
@@ -277,9 +277,9 @@ class WP_REST_OAuth1 {
 	/**
 	 * Check a token against the database
 	 *
-	 * @param string $token Token object
+	 * @param array $token Token object
 	 * @param string $consumer_key Consumer ID
-	 * @return array Array of consumer object, user object
+	 * @return array|WP_Error Array of consumer object, user object
 	 */
 	public function check_token( $token, $consumer_key ) {
 		$this->should_attempt = false;
@@ -428,8 +428,13 @@ class WP_REST_OAuth1 {
 			return false;
 		}
 
+		$valid = true;
+
+		$should_validate_callback = apply_filters( 'rest_oauth.should_validate_callback', false );
+
 		$registered = $consumer->callback;
-		if ( empty( $registered ) ) {
+
+		if ( empty( $registered ) && $should_validate_callback ) {
 			return false;
 		}
 
@@ -438,33 +443,36 @@ class WP_REST_OAuth1 {
 			// Ensure both the registered URL and requested are 'oob'
 			return ( $registered === $url );
 		}
-
+// var_dump( $should_validate_callback );
 		// Validate the supplied URL
-		if ( ! $this->validate_callback( $url ) ) {
+		if ( ! $this->validate_callback( $url ) && $should_validate_callback ) {
 			return false;
 		}
 
 		$registered = wp_parse_url( $registered );
 		$supplied = wp_parse_url( $url );
 
-		// Check all components except query and fragment
-		$parts = array( 'scheme', 'host', 'port', 'user', 'pass', 'path' );
-		$valid = true;
-		foreach ( $parts as $part ) {
-			if ( isset( $registered[ $part ] ) !== isset( $supplied[ $part ] ) ) {
-				$valid = false;
-				break;
-			}
+		if ( $should_validate_callback === true ) {
+			// Check all components except query and fragment
+			$parts = array( 'scheme', 'host', 'port', 'user', 'pass', 'path' );
 
-			if ( ! isset( $registered[ $part ] ) ) {
-				continue;
-			}
+			foreach ( $parts as $part ) {
+				if ( isset( $registered[ $part ] ) !== isset( $supplied[ $part ] ) ) {
+					$valid = false;
+					break;
+				}
 
-			if ( $registered[ $part ] !== $supplied[ $part ] ) {
-				$valid = false;
-				break;
+				if ( ! isset( $registered[ $part ] ) ) {
+					continue;
+				}
+
+				if ( $registered[ $part ] !== $supplied[ $part ] ) {
+					$valid = false;
+					break;
+				}
 			}
 		}
+
 
 		/**
 		 * Filter whether a callback is counted as valid.
@@ -601,12 +609,26 @@ class WP_REST_OAuth1 {
 		$this->remove_request_token( $params['oauth_token'] );
 
 		$current_user = wp_get_current_user();
+		// Somehow, during the access exchange (temporary token for permanent token), the current user is not set
+		// so we use the token user instead.
+		if ( empty( $current_user->ID ) ) {
+			$current_user = get_userdata( $token['user'] );
+		}
+
+		if ( empty( $current_user->ID ) ) {
+			return new WP_Error( 'json_oauth1_user_error', __( 'Could\'t get the user details', 'rest_oauth1' ), array( 'status' => 401, 'token'=> $token, ) );
+		}
+
 		// Return the new token's data
 		$data = array(
 			'oauth_token' => self::urlencode_rfc3986( $key ),
 			'oauth_token_secret' => self::urlencode_rfc3986( $data['secret'] ),
-			'user_ID' => $current_user->ID
+			'user_ID' => $current_user->ID,
+			'user_login' => $current_user->user_login,
+			'user_email' => $current_user->user_email,
+			'display_name' => $current_user->display_name,
 		);
+
 		return $data;
 	}
 
@@ -731,14 +753,14 @@ class WP_REST_OAuth1 {
 	 */
 	public function join_with_equals_sign( $params, $query_params = array(), $key = '' ) {
 		foreach ( $params as $param_key => $param_value ) {
+			if ( $key ) {
+				$param_key = $key . '%5B' . $param_key . '%5D'; // Handle multi-dimensional array
+			}
 			if ( is_array( $param_value ) ) {
 				$query_params = $this->join_with_equals_sign( $param_value, $query_params, $param_key );
 			} else {
-				if ( $key ) {
-					$param_key = $key . '%5B' . $param_key . '%5D'; // Handle multi-dimensional array
-				}
 				$string = $param_key . '=' . $param_value; // join with equals sign
-				$query_params[] = self::urlencode_rfc3986($string );
+				$query_params[] = self::urlencode_rfc3986( $string );
 			}
 		}
 		return $query_params;
