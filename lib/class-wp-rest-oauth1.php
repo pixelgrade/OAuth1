@@ -601,8 +601,12 @@ class WP_REST_OAuth1 {
 			'secret' => wp_generate_password( self::TOKEN_SECRET_LENGTH, false ),
 			'consumer' => $consumer->ID,
 			'user' => $token['user'],
+			'source_url' => $this->get_source_url(), // This is a new data for each token, so don't assume all tokens have it
 		);
 		$data = apply_filters( 'json_oauth1_access_token_data', $data );
+
+		$this->revoke_old_tokens( $data['user'], $data['consumer'], $data['source_url'] );
+
 		add_option( 'oauth1_access_' . $key, $data, null, 'no' );
 
 		// Delete the request token
@@ -826,5 +830,71 @@ class WP_REST_OAuth1 {
 
 	protected static function urlencode_rfc3986( $value ) {
 		return str_replace( array( '+', '%7E' ), array( ' ', '~' ), rawurlencode( $value ) );
+	}
+
+	protected function revoke_old_tokens( $user, $consumer, $source_url ) {
+		global $wpdb;
+		// Get all the stored access tokens and then filter out any which don't belong to the current user/consumer/source_url
+		$results = $wpdb->get_col( "SELECT option_value FROM {$wpdb->options} WHERE option_name LIKE 'oauth1_access_%'", 0 );
+		$results = array_map( 'unserialize', $results );
+		$revocations = array_filter( $results, function ( $row ) use ( $user, $consumer, $source_url ) {
+			return ( $row['user'] === $user && $row['consumer'] === $consumer && isset( $row['source_url'] ) && $row['source_url'] === $source_url );
+		} );
+		// Loop through the old tokens - there might be a lot of them
+		foreach ($revocations as $value) {
+			$this->revoke_access_token( $value['key'] );
+		}
+	}
+
+	protected function get_source_url() {
+		$source_url = '';
+
+		// First we check for the referer header
+		if ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
+			$source_url = trim( $_SERVER['HTTP_REFERER'] );
+		} elseif ( ! empty( $_SERVER['HTTP_ORIGIN'] ) ) {
+			$source_url = trim( $_SERVER['HTTP_ORIGIN'] );
+		} elseif ( ! empty( $_SERVER['HTTP_USER_AGENT'] ) ) {
+			// We will try and find the origin url from the user agent header
+			// it should be like this: 'WordPress/4.4.2; http://yoursite.com/blabla
+			$user_agent = explode( ';', $_SERVER['HTTP_USER_AGENT'] );
+
+			foreach ( $user_agent as $url ) {
+				$url = trim( $url );
+				$url = filter_var( $url, FILTER_VALIDATE_URL );
+				if ( ! empty( $url ) && is_string( $url ) ) {
+					$source_url = $url;
+					break;
+				}
+			}
+		}
+
+		// Now we need to do our best and get to the root URL of the installation
+		// First remove the query parameters and #fragment
+		$parsed_url = @parse_url( $source_url );
+		if ( ! empty( $parsed_url['host'] ) ) {
+			// This mirrors code in redirect_canonical(). It does not handle every case.
+			// We don't need the scheme
+			$source_url = $parsed_url['host'];
+			if ( ! empty( $parsed_url['port'] ) ) {
+				$source_url .= ':' . $parsed_url['port'];
+			}
+
+			if ( ! empty( $parsed_url['path'] ) ) {
+				// If we have a path we want to strip any wp-admin related part
+				if ( false !== strpos( $parsed_url['path'], 'wp-admin' ) ) {
+					$parsed_url['path'] = substr( $parsed_url['path'], 0, strpos( $parsed_url['path'], 'wp-admin' ) );
+				}
+
+				$source_url .= $parsed_url['path'];
+			}
+		}
+
+		// Finally strip the / and remove www. from the front
+		// trim it one more time just in case
+		$source_url = trim( $source_url, '/' );
+		$source_url = preg_replace('/^(www\.)/i', '', $source_url);
+
+		return $source_url;
 	}
 }

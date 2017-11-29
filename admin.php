@@ -39,6 +39,7 @@ function rest_oauth1_profile_section( $user ) {
 							<thead>
 							<tr>
 								<th style="padding-left:10px;"><?php esc_html_e( 'Application Name', 'rest_oauth1' ); ?></th>
+								<th style=""><?php esc_html_e( 'Source', 'rest_oauth1' ); ?></th>
 								<th></th>
 							</tr>
 							</thead>
@@ -49,6 +50,7 @@ function rest_oauth1_profile_section( $user ) {
 								?>
 								<tr>
 									<td><?php echo esc_html( $application->post_title ) ?></td>
+									<td><?php echo empty( $row['source_url'] ) ? '' : '<a href="//' . $row['source_url'] . '" target="_blank">' . $row['source_url'] . '</a>'; ?></td>
 									<td><button class="button" name="rest_oauth1_revoke" value="<?php echo esc_attr( $row['key'] ) ?>"><?php esc_html_e( 'Revoke', 'rest_oauth1' ) ?></button>
 								</tr>
 
