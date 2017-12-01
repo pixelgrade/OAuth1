@@ -602,6 +602,7 @@ class WP_REST_OAuth1 {
 			'consumer' => $consumer->ID,
 			'user' => $token['user'],
 			'source_url' => $this->get_source_url(), // This is a new data for each token, so don't assume all tokens have it
+			'date' => current_time( 'mysql' ),
 		);
 		$data = apply_filters( 'json_oauth1_access_token_data', $data );
 
