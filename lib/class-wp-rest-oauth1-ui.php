@@ -39,7 +39,11 @@ class WP_REST_OAuth1_UI {
 	 */
 	public function handle_request() {
 		if ( ! is_user_logged_in() ) {
-			wp_safe_redirect( wp_login_url( $_SERVER['REQUEST_URI'] ) );
+			$redirect_url = wp_login_url( $_SERVER['REQUEST_URI'] );
+			if ( ! empty( $_REQUEST['register_first'] ) ) {
+				$redirect_url = wp_registration_url();
+			}
+			wp_safe_redirect( $redirect_url );
 			exit;
 		}
 
