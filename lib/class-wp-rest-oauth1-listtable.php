@@ -17,7 +17,7 @@ class WP_REST_OAuth1_ListTable extends WP_List_Table {
 		);
 
 		$query = new WP_Query( $args );
-		$this->items = $query->posts;
+		$this->items = $query->get_posts();
 
 		$pagination_args = array(
 			'total_items' => $query->found_posts,

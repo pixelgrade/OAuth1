@@ -697,8 +697,37 @@ class WP_REST_OAuth1 {
 		$consumer_signature = rawurldecode( $params['oauth_signature'] );
 		unset( $params['oauth_signature'] );
 
+		// Transform the params array into a single level deep one.
+		$new_params = array();
+		foreach ( $params as $key => $value ) {
+			// Skip XDEBUG_SESSION_START param
+			if ( 'XDEBUG_SESSION_START' === $key ) {
+				continue;
+			}
+
+			if ( empty( $value ) ) {
+				$new_params[ $key ] = '';
+			} elseif ( is_array( $value ) ) {
+				foreach ( $value as $subkey => $subvalue ) {
+					$new_params[ $key . '[' . $subkey . ']' ] = $subvalue;
+				}
+			} else {
+				$new_params[ $key ] = $value;
+			}
+		}
+		$params = $new_params;
+
 		// normalize parameter key/values
-		array_walk_recursive( $params, array( $this, 'normalize_parameters' ) );
+		$new_params = array();
+		foreach ( $params as $key => $value ) {
+			// I know this is double encoding keys (when creating the signature string) but the same thing is done by the JS library used in Pixelgrade Care.
+			$key = self::urlencode_rfc3986( $key );
+			$value = self::urlencode_rfc3986( rawurldecode( $value ) );
+
+			$new_params[ $key ] = $value;
+		}
+		$params = $new_params;
+//		array_walk_recursive( $params, array( $this, 'normalize_parameters' ) );
 
 		// sort parameters
 		if ( ! uksort( $params, 'strcmp' ) )
@@ -777,12 +806,12 @@ class WP_REST_OAuth1 {
 	 *
 	 * @since 2.1
 	 * @see rawurlencode()
-	 * @param string $key
 	 * @param string $value
+	 * @param string $key
 	 */
-	protected function normalize_parameters( &$key, &$value ) {
-		$key = self::urlencode_rfc3986( rawurldecode( $key ) );
+	protected function normalize_parameters( &$value, &$key ) {
 		$value = self::urlencode_rfc3986( rawurldecode( $value ) );
+		$key = self::urlencode_rfc3986( $key );
 	}
 
 	/**
@@ -812,13 +841,13 @@ class WP_REST_OAuth1 {
 			return new WP_Error( 'json_oauth1_nonce_already_used', __( 'Invalid nonce - nonce has already been used', 'rest_oauth1' ), array( 'status' => 401 ) );
 
 		$used_nonces[ $timestamp ] = $nonce;
-		
+
 		// Get the current time
 		$current_time = time();
-		
+
 		// Remove expired nonces
 		foreach ( $used_nonces as $nonce_timestamp => $nonce ) {
-			
+
 			// If the nonce timestamp is expired
 			if ( $nonce_timestamp < $current_time - $valid_window )
 				unset( $used_nonces[ $nonce_timestamp ] );
