@@ -62,9 +62,14 @@ $url = add_query_arg( 'oauth_token', $token_key, $url );
 		<?php echo get_avatar( $current_user->ID, '78' ); ?>
 
 		<p><?php
+			// Decide what we should call the user
+			$user_display_name = $current_user->user_nicename;
+			if ( ! empty( $current_user->user_firstname ) ) {
+				$user_display_name = $current_user->user_firstname;
+			}
 			printf(
 				__( 'Howdy <strong>%1$s</strong>,<br/> "%2$s" would like to connect to %3$s.' ),
-				$current_user->user_login,
+				$user_display_name,
 				$consumer->post_title,
 				get_bloginfo( 'name' )
 			)
