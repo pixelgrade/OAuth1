@@ -178,7 +178,41 @@ class WP_REST_OAuth1_UI {
 	 * @param WP_Error $error Error object
 	 */
 	public function display_error( WP_Error $error ) {
+		// We want to add an inline script that will redirect to the callback URL (if any) thus allowing Pixelgrade Care to take notice.
+		add_filter( 'login_errors', array( $this, 'error_redirect_script'), 100 );
 		login_header( __( 'Error', 'rest_oauth1' ), '', $error );
 		login_footer();
+	}
+
+	public function error_redirect_script( $errors ) {
+		// If the token is an error we need to redirect to the callback URL, but with additional info.
+		if ( is_wp_error( $this->token ) && $this->token->has_errors() && ! empty( $_REQUEST['oauth_callback'] ) ) {
+			$oauth_callback_url = $_REQUEST['oauth_callback'];
+
+			$oauth_callback_url = wp_sanitize_redirect( add_query_arg( 'errors', base64_encode(json_encode( $this->token->get_error_codes())), $oauth_callback_url) );
+
+		?>
+
+		<script type="text/javascript">
+          document.addEventListener("DOMContentLoaded", function(event) {
+            // There's an error and we will redirect in 5 seconds.
+            var loginErrorsWrapper = document.getElementById('login_error');
+
+            if (typeof loginErrorsWrapper !== 'undefined' && loginErrorsWrapper.innerHTML.length) {
+              loginErrorsWrapper.innerHTML += '<br><em>Sorry for this! Sadly, there were errors and you need to try again.<br>You will be redirected back in 5 seconds...</em>';
+            }
+
+            window.setTimeout(function () {
+
+              // Move to a new location or you can do something else
+              window.location.href = "<?php echo esc_url_raw( $oauth_callback_url ); ?>";
+
+            }, 5000);
+          });
+		</script>
+
+	<?php }
+
+		return $errors;
 	}
 }
