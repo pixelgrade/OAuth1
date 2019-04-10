@@ -7,7 +7,8 @@ login_header(
 
 $current_user = wp_get_current_user();
 
-$url = site_url( 'wp-login.php?action=oauth1_authorize', 'login_post' );
+$url = add_query_arg( 'action', 'oauth1_authorize', wp_login_url() );
+//$url = site_url( 'wp-login.php?action=oauth1_authorize', 'login_post' );
 $url = add_query_arg( 'oauth_token', $token_key, $url );
 
 ?>

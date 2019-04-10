@@ -240,7 +240,8 @@ class WP_REST_OAuth1 {
 
 		switch ( $route ) {
 			case 'authorize':
-				$url = site_url( 'wp-login.php?action=oauth1_authorize', 'login_post' );
+				$url = add_query_arg( 'action', 'oauth1_authorize', wp_login_url() );
+//				$url = site_url( 'wp-login.php?action=oauth1_authorize', 'login_post' );
 				$url .= '&' . $_SERVER['QUERY_STRING'];
 				wp_safe_redirect( $url );
 				exit;
