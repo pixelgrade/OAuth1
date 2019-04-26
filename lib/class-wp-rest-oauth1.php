@@ -723,7 +723,9 @@ class WP_REST_OAuth1 {
 		foreach ( $params as $key => $value ) {
 			// I know this is double encoding keys (when creating the signature string) but the same thing is done by the JS library used in Pixelgrade Care.
 			$key = self::urlencode_rfc3986( $key );
-			$value = self::urlencode_rfc3986( rawurldecode( $value ) );
+			if ( is_string( $value ) ) {
+				$value = self::urlencode_rfc3986( rawurldecode( $value ) );
+			}
 
 			$new_params[ $key ] = $value;
 		}
