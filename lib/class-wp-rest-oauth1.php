@@ -710,7 +710,14 @@ class WP_REST_OAuth1 {
 				$new_params[ $key ] = '';
 			} elseif ( is_array( $value ) ) {
 				foreach ( $value as $subkey => $subvalue ) {
-					$new_params[ $key . '[' . $subkey . ']' ] = $subvalue;
+					// We will go one more level deep.
+					if ( is_array( $subvalue ) ) {
+						foreach ( $subvalue as $subsubkey => $subsubvalue ) {
+							$new_params[ $key . '[' . $subkey . '][' . $subsubkey . ']' ] = $subsubvalue;
+						}
+					} else {
+						$new_params[ $key . '[' . $subkey . ']' ] = $subvalue;
+					}
 				}
 			} else {
 				$new_params[ $key ] = $value;
