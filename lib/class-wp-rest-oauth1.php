@@ -868,7 +868,7 @@ class WP_REST_OAuth1 {
 		return true;
 	}
 
-	protected static function urlencode_rfc3986( $value ) {
+	public static function urlencode_rfc3986( $value ) {
 		return str_replace( array( '+', '%7E' ), array( ' ', '~' ), rawurlencode( $value ) );
 	}
 
