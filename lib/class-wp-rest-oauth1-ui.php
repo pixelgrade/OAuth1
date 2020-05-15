@@ -161,6 +161,7 @@ class WP_REST_OAuth1_UI {
 			'oauth_token' => $this->token['key'],
 			'oauth_verifier' => $verifier,
 			'wp_scope' => '*',
+			'oauth_cbr' => 'true', // further mark the URL that it is a callback redirect (cbr)
 		);
 		$args = apply_filters( 'json_oauth1_callback_args', $args, $this->token );
 		$args = urlencode_deep( $args );
